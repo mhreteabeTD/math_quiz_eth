@@ -1,1 +1,567 @@
-dd
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Make a Number</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --tg-bg: var(--tg-theme-bg-color, #0f172a);
+    --tg-text: var(--tg-theme-text-color, #f1f5f9);
+    --tg-hint: var(--tg-theme-hint-color, #94a3b8);
+    --tg-btn: var(--tg-theme-button-color, #2563eb);
+    --tg-btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --surface: rgba(255,255,255,0.07);
+    --surface2: rgba(255,255,255,0.12);
+    --blue: #3b82f6;
+    --blue-dark: #1d4ed8;
+    --purple: #7c3aed;
+    --green: #16a34a;
+    --red: #dc2626;
+    --orange: #ea580c;
+    --yellow: #fbbf24;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--tg-bg);
+    color: var(--tg-text);
+    font-family: 'Nunito', sans-serif;
+    overflow: hidden;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    padding: 10px 12px 12px;
+    gap: 10px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* ── Target Banner ── */
+  #target-banner {
+    background: linear-gradient(135deg, rgba(37,99,235,0.25), rgba(124,58,237,0.25));
+    border: 2px solid rgba(124,58,237,0.5);
+    border-radius: 18px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #target-left { display: flex; flex-direction: column; }
+  #target-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--tg-hint); text-transform: uppercase; }
+  #target-num { font-family: 'Fredoka One', cursive; font-size: 52px; color: var(--yellow); line-height: 1; }
+  #target-right { text-align: right; }
+  #round-display { font-size: 13px; font-weight: 800; color: var(--tg-hint); }
+  #points-display { font-size: 18px; font-weight: 900; color: var(--yellow); }
+
+  /* ── Progress Bar ── */
+  #progress-bg {
+    background: var(--surface);
+    border-radius: 99px;
+    height: 8px;
+    overflow: hidden;
+  }
+  #progress-fill {
+    height: 8px;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    border-radius: 99px;
+    transition: width 0.5s ease;
+  }
+
+  /* ── Equation Area ── */
+  #eq-area {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 10px 14px;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .eq-token {
+    font-size: 20px;
+    font-weight: 800;
+    background: var(--surface2);
+    padding: 3px 10px;
+    border-radius: 8px;
+  }
+  .eq-op { color: var(--yellow); }
+  .eq-result { color: #4ade80; font-size: 22px; }
+  #eq-placeholder { font-size: 13px; color: var(--tg-hint); font-style: italic; }
+
+  /* ── Feedback ── */
+  #feedback {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 800;
+    min-height: 22px;
+    transition: opacity 0.3s;
+  }
+  .fb-win { color: #4ade80; }
+  .fb-error { color: #f87171; }
+  .fb-info { color: #93c5fd; }
+
+  /* ── Operations ── */
+  #ops-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .op-btn {
+    border: 2.5px solid transparent;
+    border-radius: 14px;
+    font-size: 30px;
+    font-weight: 900;
+    cursor: pointer;
+    color: #fff;
+    transition: transform 0.1s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .op-btn:active { transform: scale(0.93); }
+  .op-btn.selected { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.3); transform: scale(1.07); }
+  .op-plus  { background: var(--purple); }
+  .op-minus { background: var(--orange); }
+  .op-times { background: var(--green); }
+  .op-divide { background: var(--red); }
+
+  /* ── Number Cards ── */
+  #cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    flex: 1;
+  }
+  .num-card {
+    background: var(--blue-dark);
+    border: 3px solid var(--blue);
+    border-radius: 16px;
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(28px, 8vw, 48px);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
+    user-select: none;
+    -webkit-user-select: none;
+    aspect-ratio: 1;
+  }
+  .num-card:active:not(.used) { transform: scale(0.93); }
+  .num-card.selected { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(251,191,36,0.4); transform: scale(1.08); }
+  .num-card.result-card { background: #1e3a8a; border-color: #60a5fa; }
+  .num-card.used { display: none; }
+
+  /* ── Action Buttons ── */
+  #action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .act-btn {
+    padding: 12px 0;
+    border-radius: 14px;
+    border: none;
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s;
+    color: #fff;
+  }
+  .act-btn:active { transform: scale(0.95); }
+  #undo-btn { background: var(--surface2); color: var(--tg-hint); }
+  #check-btn { background: var(--green); color: #fff; }
+  #check-btn:disabled { opacity: 0.35; cursor: default; }
+  #skip-btn { background: var(--surface2); color: var(--tg-hint); }
+
+  /* ── Modal Overlay ── */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 50;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #modal-overlay.show { display: flex; }
+  #modal-box {
+    background: #1e293b;
+    border-radius: 24px;
+    padding: 32px 24px;
+    text-align: center;
+    width: 100%;
+    max-width: 320px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  #modal-icon { font-size: 60px; margin-bottom: 8px; }
+  #modal-title { font-family: 'Fredoka One', cursive; font-size: 30px; margin-bottom: 8px; }
+  #modal-msg { color: var(--tg-hint); font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+  #modal-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    border: none;
+    background: var(--tg-btn);
+    color: var(--tg-btn-text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  #modal-btn:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="target-banner">
+    <div id="target-left">
+      <div id="target-label">Target</div>
+      <div id="target-num">—</div>
+    </div>
+    <div id="target-right">
+      <div id="round-display">Round 1 / 10</div>
+      <div id="points-display">⭐ 0</div>
+    </div>
+  </div>
+
+  <div id="progress-bg"><div id="progress-fill" style="width:5%"></div></div>
+
+  <div id="eq-area"><span id="eq-placeholder">Pick a number → operation → number</span></div>
+
+  <div id="feedback"></div>
+
+  <div id="ops-row">
+    <button class="op-btn op-plus"   data-op="+">+</button>
+    <button class="op-btn op-minus"  data-op="−">−</button>
+    <button class="op-btn op-times"  data-op="×">×</button>
+    <button class="op-btn op-divide" data-op="÷">÷</button>
+  </div>
+
+  <div id="cards-row"></div>
+
+  <div id="action-row">
+    <button class="act-btn" id="undo-btn">↩ Undo</button>
+    <button class="act-btn" id="check-btn" disabled>✓ Check</button>
+    <button class="act-btn" id="skip-btn">⏭ Skip</button>
+  </div>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div id="modal-icon">🎉</div>
+    <div id="modal-title">You did it!</div>
+    <div id="modal-msg"></div>
+    <button id="modal-btn">Next Round</button>
+  </div>
+</div>
+
+<script>
+// ── Telegram Mini App init ────────────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.disableClosingConfirmation();
+}
+
+// ── Game Logic ────────────────────────────────────────────────────────────────
+const TOTAL_ROUNDS = 10;
+let state = {};
+
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+function applyOp(a, b, op) {
+  if (op === "+") return a + b;
+  if (op === "−") return a - b;
+  if (op === "×") return a * b;
+  if (op === "÷") {
+    if (b === 0) return null;
+    const r = a / b;
+    return Number.isInteger(r) ? r : null;
+  }
+  return null;
+}
+
+function permutations(arr) {
+  if (arr.length <= 1) return [arr.slice()];
+  const res = [];
+  arr.forEach((v, i) => {
+    const rest = arr.filter((_, j) => j !== i);
+    permutations(rest).forEach(p => res.push([v, ...p]));
+  });
+  return res;
+}
+
+function findTargets(nums) {
+  const ops = ["+", "−", "×", "÷"];
+  const targets = new Set();
+  for (const p of permutations(nums)) {
+    const [a, b, c, d] = p;
+    for (const o1 of ops) for (const o2 of ops) for (const o3 of ops) {
+      const r1 = applyOp(a, b, o1);
+      if (r1 !== null) {
+        const r2 = applyOp(r1, c, o2);
+        if (r2 !== null) { const r3 = applyOp(r2, d, o3); if (r3 !== null && r3 >= 1 && r3 <= 100) targets.add(r3); }
+      }
+      const ab = applyOp(a, b, o1), cd = applyOp(c, d, o3);
+      if (ab !== null && cd !== null) { const r = applyOp(ab, cd, o2); if (r !== null && r >= 1 && r <= 100) targets.add(r); }
+      const bc = applyOp(b, c, o2);
+      if (bc !== null) { const r_bcd = applyOp(bc, d, o3); if (r_bcd !== null) { const r = applyOp(a, r_bcd, o1); if (r !== null && r >= 1 && r <= 100) targets.add(r); } }
+    }
+  }
+  return [...targets].filter(Number.isInteger);
+}
+
+function generatePuzzle() {
+  for (let i = 0; i < 50; i++) {
+    const nums = [randInt(1,12), randInt(1,12), randInt(1,12), randInt(1,12)];
+    const targets = findTargets(nums);
+    if (targets.length > 0) return { nums, target: targets[randInt(0, targets.length - 1)] };
+  }
+  return { nums: [2, 3, 4, 5], target: 12 };
+}
+
+function initGame() {
+  state = { points: 0, round: 1, ...newRoundData() };
+  hideModal();
+  renderAll();
+  setFeedback("", "");
+}
+
+function newRoundData() {
+  const { nums, target } = generatePuzzle();
+  return {
+    target,
+    cards: nums.map((v, i) => ({ id: i, value: v, used: false, isResult: false })),
+    selectedCard: null,
+    selectedOp: null,
+    history: [],
+  };
+}
+
+function loadNewRound() {
+  const { target, cards, selectedCard, selectedOp, history } = newRoundData();
+  Object.assign(state, { target, cards, selectedCard, selectedOp, history });
+}
+
+function activeCards() { return state.cards.filter(c => !c.used); }
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+function renderAll() {
+  document.getElementById("target-num").textContent = state.target;
+  document.getElementById("round-display").textContent = `Round ${state.round} / ${TOTAL_ROUNDS}`;
+  document.getElementById("points-display").textContent = `⭐ ${state.points}`;
+  const pct = Math.max(5, Math.round((state.round - 1) / TOTAL_ROUNDS * 100));
+  document.getElementById("progress-fill").style.width = pct + "%";
+  renderCards();
+  renderEquation();
+  syncOpBtns();
+  syncActionBtns();
+}
+
+function renderCards() {
+  const row = document.getElementById("cards-row");
+  row.innerHTML = "";
+  // Always show 4 slots, hide used ones via CSS
+  state.cards.forEach(card => {
+    const el = document.createElement("div");
+    el.className = "num-card" +
+      (card.used ? " used" : "") +
+      (card.isResult ? " result-card" : "") +
+      (card.id === state.selectedCard ? " selected" : "");
+    el.textContent = card.value;
+    el.dataset.id = card.id;
+    if (!card.used) el.addEventListener("click", () => onCardClick(card.id));
+    row.appendChild(el);
+  });
+}
+
+function renderEquation() {
+  const area = document.getElementById("eq-area");
+  area.innerHTML = "";
+  if (!state.history.length) {
+    area.innerHTML = `<span id="eq-placeholder" style="font-size:13px;color:var(--tg-hint);font-style:italic">Pick a number → operation → number</span>`;
+    return;
+  }
+  const last = state.history[state.history.length - 1];
+  const tok = (txt, cls) => {
+    const s = document.createElement("span");
+    s.className = "eq-token " + (cls || "");
+    s.textContent = txt;
+    return s;
+  };
+  area.appendChild(tok(last.a));
+  area.appendChild(tok(last.op, "eq-op"));
+  area.appendChild(tok(last.b));
+  area.appendChild(tok("="));
+  area.appendChild(tok(last.result, "eq-result"));
+}
+
+function syncOpBtns() {
+  document.querySelectorAll(".op-btn").forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.op === state.selectedOp);
+  });
+}
+
+function syncActionBtns() {
+  document.getElementById("check-btn").disabled = activeCards().length !== 1;
+}
+
+function setFeedback(msg, cls) {
+  const el = document.getElementById("feedback");
+  el.textContent = msg;
+  el.className = cls;
+}
+
+// ── Interaction ───────────────────────────────────────────────────────────────
+function onCardClick(id) {
+  const card = state.cards.find(c => c.id === id);
+  if (!card || card.used) return;
+
+  if (state.selectedCard === null) {
+    state.selectedCard = id;
+    renderCards();
+    setFeedback("Now pick an operation, then the second number.", "fb-info");
+    return;
+  }
+  if (state.selectedCard === id) {
+    state.selectedCard = null;
+    state.selectedOp = null;
+    renderCards();
+    syncOpBtns();
+    setFeedback("", "");
+    return;
+  }
+  if (state.selectedOp === null) {
+    setFeedback("Pick an operation first!", "fb-error");
+    return;
+  }
+
+  const cardA = state.cards.find(c => c.id === state.selectedCard);
+  const cardB = card;
+  const result = applyOp(cardA.value, cardB.value, state.selectedOp);
+
+  if (result === null || result < 0) {
+    setFeedback("That doesn't give a valid whole number! Try another combo.", "fb-error");
+    return;
+  }
+
+  const newId = Date.now();
+  state.history.push({ a: cardA.value, op: state.selectedOp, b: cardB.value, result, removedA: cardA.id, removedB: cardB.id, newId });
+  cardA.used = true;
+  cardB.used = true;
+  state.cards.push({ id: newId, value: result, used: false, isResult: true });
+  state.selectedCard = null;
+  state.selectedOp = null;
+
+  setFeedback(`${cardA.value} ${state.history[state.history.length-1].op} ${cardB.value} = ${result}`, "fb-info");
+  renderAll();
+
+  const remaining = activeCards();
+  if (remaining.length === 1 && remaining[0].value === state.target) {
+    setTimeout(onWin, 300);
+  }
+}
+
+function onOpClick(op) {
+  if (state.selectedCard === null) { setFeedback("Pick a number card first!", "fb-error"); return; }
+  state.selectedOp = state.selectedOp === op ? null : op;
+  syncOpBtns();
+}
+
+function onUndo() {
+  if (!state.history.length) return;
+  const last = state.history.pop();
+  state.cards = state.cards.filter(c => c.id !== last.newId);
+  state.cards.forEach(c => { if (c.id === last.removedA || c.id === last.removedB) c.used = false; });
+  state.selectedCard = null;
+  state.selectedOp = null;
+  renderAll();
+  setFeedback("", "");
+}
+
+function onCheck() {
+  const remaining = activeCards();
+  if (remaining.length !== 1) return;
+  if (remaining[0].value === state.target) onWin();
+  else setFeedback(`${remaining[0].value} ≠ ${state.target} — keep trying!`, "fb-error");
+}
+
+function onSkip() {
+  state.round++;
+  if (state.round > TOTAL_ROUNDS) { onGameOver(); return; }
+  loadNewRound();
+  renderAll();
+  setFeedback("Skipped! New puzzle.", "fb-info");
+}
+
+function onWin() {
+  const pts = Math.max(10, 50 - state.history.length * 5);
+  state.points += pts;
+  if (state.round >= TOTAL_ROUNDS) {
+    onGameOver();
+  } else {
+    showModal("🎉", "Correct!", `+${pts} points! Ready for round ${state.round + 1}?`, "Next Round →", () => {
+      state.round++;
+      loadNewRound();
+      hideModal();
+      renderAll();
+      setFeedback("", "");
+    });
+  }
+}
+
+function onGameOver() {
+  const score = state.points;
+  const stars = score >= 350 ? "⭐⭐⭐" : score >= 200 ? "⭐⭐" : "⭐";
+  showModal("🏆", "Game Complete!", `You scored ${score} points!\n${stars}`, "Play Again", () => {
+    hideModal();
+    initGame();
+  });
+  // Send score back to Telegram if in Mini App
+  if (tg) tg.sendData(JSON.stringify({ score, rounds: TOTAL_ROUNDS }));
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+let modalCallback = null;
+function showModal(icon, title, msg, btnTxt, cb) {
+  document.getElementById("modal-icon").textContent = icon;
+  document.getElementById("modal-title").textContent = title;
+  document.getElementById("modal-msg").textContent = msg;
+  document.getElementById("modal-btn").textContent = btnTxt;
+  modalCallback = cb;
+  document.getElementById("modal-overlay").classList.add("show");
+}
+function hideModal() { document.getElementById("modal-overlay").classList.remove("show"); }
+
+document.getElementById("modal-btn").addEventListener("click", () => { if (modalCallback) modalCallback(); });
+
+// ── Wire up controls ──────────────────────────────────────────────────────────
+document.querySelectorAll(".op-btn").forEach(btn => btn.addEventListener("click", () => onOpClick(btn.dataset.op)));
+document.getElementById("undo-btn").addEventListener("click", onUndo);
+document.getElementById("check-btn").addEventListener("click", onCheck);
+document.getElementById("skip-btn").addEventListener("click", onSkip);
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+initGame();
+</script>
+</body>
+</html>
